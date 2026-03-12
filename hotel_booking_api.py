@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from typing import Optional
 import os
@@ -8,6 +9,14 @@ from sqlalchemy import Column, Date, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./hotel_booking.db")
 
