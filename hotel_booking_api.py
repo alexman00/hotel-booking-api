@@ -92,6 +92,11 @@ def home():
     return {"message": "Hotel Booking API is running"}
 
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
 @app.post("/reservations")
 def create_reservation(reservation: ReservationCreate):
     validate_dates(reservation.check_in, reservation.check_out)
