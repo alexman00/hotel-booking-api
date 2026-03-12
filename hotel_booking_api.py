@@ -1,5 +1,6 @@
 from datetime import date
 from typing import Optional
+import os
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, EmailStr, Field
@@ -8,11 +9,14 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 app = FastAPI()
 
-DATABASE_URL = "sqlite:///./hotel_booking.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./hotel_booking.db")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -55,13 +59,6 @@ class ReservationUpdate(BaseModel):
     status: Optional[str] = Field(default=None, pattern="^(confirmed|cancelled|pending)$")
 
 
-class ReservationSearch(BaseModel):
-    check_in_from: Optional[date] = None
-    check_in_to: Optional[date] = None
-    check_out_from: Optional[date] = None
-    check_out_to: Optional[date] = None
-
-
 def validate_dates(check_in: date, check_out: date):
     if check_out <= check_in:
         raise HTTPException(
@@ -70,7 +67,13 @@ def validate_dates(check_in: date, check_out: date):
         )
 
 
-def room_is_double_booked(db, room_number: int, check_in: date, check_out: date, exclude_id: Optional[int] = None):
+def room_is_double_booked(
+    db,
+    room_number: int,
+    check_in: date,
+    check_out: date,
+    exclude_id: Optional[int] = None
+):
     query = db.query(Reservation).filter(
         Reservation.room_number == room_number,
         Reservation.status != "cancelled",
@@ -91,7 +94,6 @@ def home():
 
 @app.post("/reservations")
 def create_reservation(reservation: ReservationCreate):
-
     validate_dates(reservation.check_in, reservation.check_out)
 
     db = SessionLocal()
@@ -163,7 +165,6 @@ def get_all_reservations(
 
 @app.get("/reservations/{reservation_id}")
 def get_reservation_by_id(reservation_id: int):
-
     db = SessionLocal()
     reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
     db.close()
@@ -176,7 +177,6 @@ def get_reservation_by_id(reservation_id: int):
 
 @app.put("/reservations/{reservation_id}")
 def replace_reservation(reservation_id: int, reservation_data: ReservationCreate):
-
     db = SessionLocal()
     reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
 
@@ -219,7 +219,6 @@ def replace_reservation(reservation_id: int, reservation_data: ReservationCreate
 
 @app.patch("/reservations/{reservation_id}")
 def patch_reservation(reservation_id: int, reservation_data: ReservationUpdate):
-
     db = SessionLocal()
     reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
 
@@ -264,7 +263,6 @@ def patch_reservation(reservation_id: int, reservation_data: ReservationUpdate):
 
 @app.post("/reservations/{reservation_id}/cancel")
 def cancel_reservation(reservation_id: int):
-
     db = SessionLocal()
     reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
 
@@ -285,7 +283,6 @@ def cancel_reservation(reservation_id: int):
 
 @app.delete("/reservations/{reservation_id}")
 def delete_reservation(reservation_id: int):
-
     db = SessionLocal()
     reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
 
